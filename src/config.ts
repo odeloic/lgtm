@@ -5,6 +5,8 @@ import { z } from "zod";
 
 export const USER_DIR = join(homedir(), ".lgtm");
 export const USER_CONFIG_PATH = join(USER_DIR, "config.json");
+export const USER_VOICE_PATH = join(USER_DIR, "voice.md");
+export const USER_AUTH_PATH = join(USER_DIR, "auth.json");
 
 const UserConfig = z.looseObject({
   model: z.string().optional(),

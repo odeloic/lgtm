@@ -29,7 +29,7 @@ export function parseRemote(url: string): Remote | null {
   return host && path ? { url, host, path } : null;
 }
 
-export async function getOrigin(cwd: string): Promise<Remote | null> {
-  const { code, stdout } = await exec("git", ["remote", "get-url", "origin"], { cwd });
+export async function getRemote(cwd: string, name = "origin"): Promise<Remote | null> {
+  const { code, stdout } = await exec("git", ["remote", "get-url", name], { cwd });
   return code === 0 ? parseRemote(stdout.trim()) : null;
 }

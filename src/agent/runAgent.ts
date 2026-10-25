@@ -6,7 +6,14 @@ const AgentResult = z.object({
   result: z.string(),
   session_id: z.string(),
   duration_ms: z.number(),
-  usage: z.looseObject({}).optional(),
+  usage: z
+    .object({
+      inputTokens: z.number().optional(),
+      outputTokens: z.number().optional(),
+      cacheReadTokens: z.number().optional(),
+      cacheWriteTokens: z.number().optional(),
+    })
+    .optional(),
 });
 export type AgentResult = z.infer<typeof AgentResult>;
 
