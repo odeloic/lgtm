@@ -1,8 +1,10 @@
 import { z } from "zod";
 
+export const SEVERITIES = ["blocking", "major", "minor", "nit"] as const;
+
 export const Severity = z.preprocess(
   (value) => (typeof value === "string" ? value.toLowerCase() : value),
-  z.enum(["blocking", "major", "minor", "nit"]),
+  z.enum(SEVERITIES),
 );
 export type Severity = z.infer<typeof Severity>;
 
@@ -42,3 +44,26 @@ export const Finding = z.object({
 export type Finding = z.infer<typeof Finding>;
 
 export const ReviewOutput = z.object({ findings: z.array(Finding) });
+
+export const VERDICTS = ["keep", "downgrade", "drop"] as const;
+
+export const Verdict = z
+  .object({
+    index: z.int().nonnegative(),
+    verdict: z.enum(VERDICTS),
+    severity: Severity.optional(),
+    reason: z.string(),
+  })
+  .refine((v) => v.verdict !== "downgrade" || v.severity !== undefined, {
+    message: "a downgrade verdict needs a severity",
+  });
+export type Verdict = z.infer<typeof Verdict>;
+
+export const VerifyOutput = z.object({ verdicts: z.array(Verdict) });
+
+export interface FindingRecord extends Finding {
+  id: string;
+  state: "proposed";
+  general?: true;
+  verdict?: Pick<Verdict, "verdict" | "reason"> & { from?: Severity };
+}

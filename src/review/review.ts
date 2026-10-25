@@ -49,8 +49,7 @@ export interface ReviewResult {
   sessionId: string;
 }
 
-export async function reviewMergeRequest(mr: MergeRequest, cwd: string, model?: string): Promise<ReviewResult> {
-  const ledger: LedgerEntry[] = [];
+export async function reviewMergeRequest(mr: MergeRequest, cwd: string, model?: string, ledger: LedgerEntry[] = []): Promise<ReviewResult> {
   const call = async (prompt: string, sessionId?: string): Promise<AgentResult> => {
     const result = await runAgent(prompt, { cwd, model, mode: "ask", sessionId });
     ledger.push(ledgerEntry("review", result, model));

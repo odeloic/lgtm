@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 
 export interface ExecResult {
   code: number;
+  signal: NodeJS.Signals | null;
   stdout: string;
   stderr: string;
 }
@@ -32,6 +33,6 @@ export function exec(bin: string, args: string[], { cwd, timeoutMs = 30_000 }: E
     child.on("error", (err: NodeJS.ErrnoException) =>
       reject(err.code === "ENOENT" ? new CommandNotFoundError(bin) : err),
     );
-    child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
+    child.on("close", (code, signal) => resolve({ code: code ?? 1, signal, stdout, stderr }));
   });
 }

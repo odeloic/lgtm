@@ -1,8 +1,15 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { USER_DIR } from "../config.js";
 import { exec } from "../exec.js";
 import type { MergeRequest } from "../git/mr.js";
+
+const CURSOR_PERMISSIONS = {
+  permissions: {
+    allow: ["Read(**)"],
+    deny: ["Write(**)", "Shell(*)", "Read(.env*)", "Read(**/.env*)", "Read(**/*.pem)", "Read(**/*.key)"],
+  },
+};
 
 export interface ReviewTree {
   dir: string;
@@ -12,10 +19,14 @@ export interface ReviewTree {
   remove(): Promise<void>;
 }
 
+export function reviewTreePath(runId: string): string {
+  return join(USER_DIR, "tmp", runId);
+}
+
 export async function buildReviewTree(repoRoot: string, originUrl: string, mr: MergeRequest, runId: string): Promise<ReviewTree> {
-  const dir = join(USER_DIR, "tmp", runId);
+  const dir = reviewTreePath(runId);
   const git = async (args: string[]) => {
-    const { code, stdout, stderr } = await exec("git", args, { cwd: dir, timeoutMs: 300_000 });
+    const { code, stdout, stderr } = await exec("git", ["-c", "core.quotePath=false", ...args], { cwd: dir, timeoutMs: 300_000 });
     if (code !== 0) throw new Error(`git ${args[0]}: ${(stderr || stdout).trim()}`);
     return stdout;
   };
@@ -33,6 +44,8 @@ export async function buildReviewTree(repoRoot: string, originUrl: string, mr: M
   ]);
   await git(["checkout", "--quiet", "--detach", mr.headSha]);
   await rm(join(dir, ".cursor"), { recursive: true, force: true });
+  await mkdir(join(dir, ".cursor"));
+  await writeFile(join(dir, ".cursor", "cli.json"), `${JSON.stringify(CURSOR_PERMISSIONS, null, 2)}\n`);
   const mergeBase = (await git(["merge-base", mr.baseSha, mr.headSha])).trim();
   const targetSha = (await git(["rev-parse", "refs/lgtm/base"])).trim();
 

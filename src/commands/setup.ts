@@ -1,9 +1,8 @@
 import * as p from "@clack/prompts";
-import { checkAuth } from "../agent/auth.js";
+import { INSTALL_HINT, checkAuth } from "../agent/auth.js";
 import type { Model } from "../agent/models.js";
 import { USER_CONFIG_PATH, readUserConfig, writeUserConfig } from "../config.js";
 
-const INSTALL_HINT = "Install it with: curl https://cursor.com/install -fsS | bash";
 const LOGIN_HINT = "Run `agent login`, then `lgtm setup` again.";
 
 export async function setup(): Promise<number> {
@@ -43,30 +42,55 @@ export async function setup(): Promise<number> {
   }
 
   const config = await readUserConfig();
-  const model = await selectModel(auth.models, config.model);
+  const model = await selectModel(auth.models, config.model, `Review model (${auth.models.length} available, type to filter)`);
   if (p.isCancel(model)) {
     p.cancel("Setup cancelled; no model saved.");
     return 1;
   }
 
-  await writeUserConfig({ ...config, model });
-  p.outro(`Default model: ${model} (saved to ${USER_CONFIG_PATH})`);
+  const verifyChoice = await selectModel(
+    auth.models,
+    config.verifyModel ?? SAME_AS_REVIEW,
+    "Verify model (a fresh session that tries to refute each finding)",
+    { value: SAME_AS_REVIEW, label: `same as review (${model})`, hint: "default" },
+  );
+  if (p.isCancel(verifyChoice)) {
+    p.cancel("Setup cancelled; no model saved.");
+    return 1;
+  }
+  const verifyModel = verifyChoice === SAME_AS_REVIEW ? undefined : verifyChoice;
+
+  await writeUserConfig({ ...config, model, verifyModel });
+  p.outro(`Review model: ${model}, verify model: ${verifyModel ?? model} (saved to ${USER_CONFIG_PATH})`);
   return 0;
 }
 
-function selectModel(models: Model[], current: string | undefined) {
+const SAME_AS_REVIEW = "same-as-review";
+
+function selectModel(
+  models: Model[],
+  current: string | undefined,
+  message: string,
+  extra?: { value: string; label: string; hint: string },
+) {
   const initial =
-    models.find((m) => m.id === current)?.id ?? models.find((m) => m.isDefault)?.id ?? models[0]?.id;
+    (current === extra?.value ? extra?.value : undefined) ??
+    models.find((m) => m.id === current)?.id ??
+    models.find((m) => m.isDefault)?.id ??
+    models[0]?.id;
 
   return p.autocomplete<string>({
-    message: `Default model (${models.length} available, type to filter)`,
-    options: models.map((m) => ({
+    message,
+    options: [
+      ...(extra ? [extra] : []),
+      ...models.map((m) => ({
       value: m.id,
       label: m.id,
       hint: [m.name, m.isDefault && "Cursor default", m.id === current && "current"]
         .filter(Boolean)
         .join(" · "),
-    })),
+      })),
+    ],
     initialValue: initial,
     maxItems: 10,
     filter: (search, option) => {

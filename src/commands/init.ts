@@ -1,6 +1,7 @@
 import { access, readFile } from "node:fs/promises";
 import { relative } from "node:path";
 import * as p from "@clack/prompts";
+import { requireAgent, showRetries } from "../agent/require.js";
 import { readUserConfig, USER_VOICE_PATH } from "../config.js";
 import { repoRoot as findRepoRoot } from "../git/repo.js";
 import { printRules, proposeRules, writeRules } from "../init/rules.js";
@@ -57,14 +58,17 @@ async function initRules(root: string, extraSources: string[]): Promise<number> 
 
   const { model } = await readUserConfig();
   const spin = p.spinner();
+  await requireAgent(spin);
   spin.start(`Proposing rules with ${model ?? "default model"}`);
+  const stopShowingRetries = showRetries(spin);
   let proposal;
   try {
     proposal = await proposeRules(sources, root, model);
   } catch (err) {
     spin.error("Couldn't propose rules");
-    p.cancel((err as Error).message);
-    return 1;
+    throw err;
+  } finally {
+    stopShowingRetries();
   }
   const seconds = (proposal.ledger.reduce((sum, e) => sum + e.durationMs, 0) / 1000).toFixed(1);
   spin.stop(`${proposal.rules.length} rules proposed in ${seconds}s`);

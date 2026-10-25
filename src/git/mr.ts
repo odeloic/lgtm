@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { exec } from "../exec.js";
+import { classifyHostFailure } from "./errors.js";
 import type { Platform } from "./host.js";
 
 export interface MergeRequest {
@@ -32,7 +33,7 @@ const GitHubPr = z.object({
 
 export async function fetchMergeRequest(platform: Platform, id: number, cwd: string): Promise<MergeRequest> {
   if (platform === "gitlab") {
-    const mr = GitLabMr.parse(JSON.parse(await run("glab", ["mr", "view", String(id), "--output", "json"], cwd)));
+    const mr = GitLabMr.parse(JSON.parse(await run("glab", ["mr", "view", String(id), "--output", "json"], id, cwd)));
     return {
       id,
       title: mr.title,
@@ -45,7 +46,7 @@ export async function fetchMergeRequest(platform: Platform, id: number, cwd: str
     };
   }
   const fields = "title,body,author,baseRefName,baseRefOid,headRefOid";
-  const pr = GitHubPr.parse(JSON.parse(await run("gh", ["pr", "view", String(id), "--json", fields], cwd)));
+  const pr = GitHubPr.parse(JSON.parse(await run("gh", ["pr", "view", String(id), "--json", fields], id, cwd)));
   return {
     id,
     title: pr.title,
@@ -58,8 +59,8 @@ export async function fetchMergeRequest(platform: Platform, id: number, cwd: str
   };
 }
 
-async function run(bin: string, args: string[], cwd: string): Promise<string> {
+async function run(bin: string, args: string[], mrId: number, cwd: string): Promise<string> {
   const { code, stdout, stderr } = await exec(bin, args, { cwd });
-  if (code !== 0) throw new Error((stderr || stdout).trim() || `${bin} exited with code ${code}`);
+  if (code !== 0) throw classifyHostFailure(bin, (stderr || stdout).trim() || `${bin} exited with code ${code}`, mrId);
   return stdout;
 }

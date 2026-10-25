@@ -10,6 +10,7 @@ export const USER_AUTH_PATH = join(USER_DIR, "auth.json");
 
 const UserConfig = z.looseObject({
   model: z.string().optional(),
+  verifyModel: z.string().optional(),
 });
 export type UserConfig = z.infer<typeof UserConfig>;
 

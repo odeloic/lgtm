@@ -2,6 +2,8 @@ import { z } from "zod";
 import { CommandNotFoundError, exec } from "../exec.js";
 import { type Model, parseModels } from "./models.js";
 
+export const INSTALL_HINT = "Install it with: curl https://cursor.com/install -fsS | bash";
+
 const execAgent = (args: string[]) => exec("agent", args);
 
 const AgentStatus = z.object({
