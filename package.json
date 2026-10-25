@@ -1,0 +1,24 @@
+{
+  "name": "lgtm",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local agentic review tool",
+  "type": "module",
+  "bin": {
+    "lgtm": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^7.0.2"
+  }
+}
