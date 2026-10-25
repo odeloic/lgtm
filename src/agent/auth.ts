@@ -1,6 +1,8 @@
 import { z } from "zod";
-import { AgentNotFoundError, execAgent } from "./exec.js";
+import { CommandNotFoundError, exec } from "../exec.js";
 import { type Model, parseModels } from "./models.js";
+
+const execAgent = (args: string[]) => exec("agent", args);
 
 const AgentStatus = z.object({
   status: z.string(),
@@ -19,7 +21,7 @@ export async function checkAuth(): Promise<AuthCheck> {
   try {
     version = (await execAgent(["--version"])).stdout.trim();
   } catch (err) {
-    if (err instanceof AgentNotFoundError) return { kind: "missing" };
+    if (err instanceof CommandNotFoundError) return { kind: "missing" };
     throw err;
   }
 
@@ -28,8 +30,6 @@ export async function checkAuth(): Promise<AuthCheck> {
   const message = status.message ?? status.status;
   if (!status.isAuthenticated) return { kind: "logged-out", version, message };
 
-  // `agent status` only inspects locally stored tokens; it reports
-  // authenticated even when the server rejects them, so verify with a real call.
   const probe = await execAgent(["models"]);
   if (probe.code !== 0) {
     const reason = (probe.stderr || probe.stdout).trim().replace(/^Error:\s*/, "");

@@ -1,22 +1,26 @@
 import { spawn } from "node:child_process";
 
-export const AGENT_BIN = "agent";
-
 export interface ExecResult {
   code: number;
   stdout: string;
   stderr: string;
 }
 
-export class AgentNotFoundError extends Error {
-  constructor() {
-    super(`\`${AGENT_BIN}\` was not found in PATH`);
+export interface ExecOptions {
+  cwd?: string;
+  timeoutMs?: number;
+}
+
+export class CommandNotFoundError extends Error {
+  constructor(readonly bin: string) {
+    super(`\`${bin}\` was not found in PATH`);
   }
 }
 
-export function execAgent(args: string[], timeoutMs = 30_000): Promise<ExecResult> {
+export function exec(bin: string, args: string[], { cwd, timeoutMs = 30_000 }: ExecOptions = {}): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(AGENT_BIN, args, {
+    const child = spawn(bin, args, {
+      cwd,
       stdio: ["ignore", "pipe", "pipe"],
       timeout: timeoutMs,
       killSignal: "SIGTERM",
@@ -26,7 +30,7 @@ export function execAgent(args: string[], timeoutMs = 30_000): Promise<ExecResul
     child.stdout.on("data", (chunk) => (stdout += chunk));
     child.stderr.on("data", (chunk) => (stderr += chunk));
     child.on("error", (err: NodeJS.ErrnoException) =>
-      reject(err.code === "ENOENT" ? new AgentNotFoundError() : err),
+      reject(err.code === "ENOENT" ? new CommandNotFoundError(bin) : err),
     );
     child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
   });
