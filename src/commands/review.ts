@@ -24,7 +24,7 @@ import { type ServeOptions, removeTreeOnSignal, serveRun } from "./serve.js";
 
 const SEVERITY_ORDER: Severity[] = ["blocking", "major", "minor", "nit"];
 
-export async function review(mrId: number, options: ServeOptions): Promise<number> {
+export async function review(mrId: number, options: ServeOptions, rulesFile?: string): Promise<number> {
   p.intro(`lgtm review !${mrId}`);
   const spin = p.spinner();
   const stopShowingRetries = showRetries(spin);
@@ -72,7 +72,7 @@ export async function review(mrId: number, options: ServeOptions): Promise<numbe
     spin.start("Building review tree");
     const tree = await buildReviewTree(repoRoot, origin.url, mr, runId);
     try {
-      return await reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions, platform, options });
+      return await reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions, platform, options, rulesFile });
     } finally {
       stopRemovingTree();
       await tree.remove();
@@ -95,11 +95,12 @@ interface ReviewTreeInput {
   discussions: Discussion[];
   platform: Platform;
   options: ServeOptions;
+  rulesFile?: string;
 }
 
-async function reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions, platform, options }: ReviewTreeInput): Promise<number> {
+async function reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions, platform, options, rulesFile }: ReviewTreeInput): Promise<number> {
   const files = await listChangedFiles(tree, mr.headSha, config?.skip ?? DEFAULT_SKIP);
-  const baseRules = await loadBaseRules(tree, repoRoot, mr.targetBranch);
+  const baseRules = await loadBaseRules(tree, repoRoot, mr.targetBranch, rulesFile);
   const rules = rulesForFiles(baseRules.rules, files.reviewed);
   const voice = await loadVoice(tree);
   const diff = files.reviewed.length

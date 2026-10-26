@@ -251,7 +251,10 @@ function VerifierStrip({ f, onAgree }: { f: FindingRecord; onAgree: () => void }
   return (
     <div className="verd">
       <div className="lab">
-        <b>Verifier · {dropped ? "dropped" : "kept"}</b>
+        <b>
+          Verifier · {dropped ? "dropped" : "kept"}
+          <CopyTextButton text={verdict.reason} />
+        </b>
         {verdict.verdict === "downgrade" && verdict.from && (
           <span className="shift">
             <span className="was">{SEVERITY_LABEL[verdict.from]}</span> → {SEVERITY_LABEL[severityBeforeRevisions(f)]}
@@ -480,6 +483,7 @@ function Thread({ f }: { f: FindingRecord }) {
                   {timeOfDay(m.at)}
                   {m.role === "agent" && waited}
                 </small>
+                {m.role === "agent" && <CopyTextButton text={m.text} />}
               </div>
               <Text text={m.text} />
               {m.proposal && <ProposalBox f={f} message={m} proposal={m.proposal} />}
@@ -564,6 +568,15 @@ function CopyButton({ f }: { f: FindingRecord }) {
     <button className="btn pri" onClick={() => void actions.copy(f.id)}>
       <Icon name="copy" />
       Copy
+    </button>
+  );
+}
+
+function CopyTextButton({ text }: { text: string }) {
+  const { actions } = useCtx();
+  return (
+    <button type="button" className="btn ghost copy-text" title="Copy" aria-label="Copy" onClick={() => void actions.copyText(text)}>
+      <Icon name="copy" />
     </button>
   );
 }

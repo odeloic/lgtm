@@ -1350,6 +1350,16 @@ textarea.mono {
   color: var(--fg-3);
 }
 
+.copy-text {
+  margin-left: auto;
+  padding: 2px 5px;
+  font-size: 12px;
+}
+
+.verd .lab b .copy-text {
+  margin-left: 4px;
+}
+
 .turn p {
   margin: 4px 0 0;
   max-width: 76ch;

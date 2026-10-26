@@ -165,6 +165,11 @@ export function App() {
           return false;
         }
       },
+      copyText: async (text) => {
+        const ok = await writeClipboard(text);
+        notify(ok ? "Copied to the clipboard." : "Could not write to the clipboard.", ok ? "info" : "error");
+        return ok;
+      },
       ask: (id, message) => {
         setThreadErrors(({ [id]: _, ...rest }) => rest);
         return guard(() => api.ask(id, message));

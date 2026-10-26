@@ -10,7 +10,13 @@ export interface BaseRules {
   warning?: string;
 }
 
-export async function loadBaseRules(tree: ReviewTree, repoRoot: string, targetBranch: string): Promise<BaseRules> {
+export async function loadBaseRules(
+  tree: ReviewTree,
+  repoRoot: string,
+  targetBranch: string,
+  rulesFile?: string,
+): Promise<BaseRules> {
+  if (rulesFile) return { rules: RulesFile.parse(parse(await readFile(rulesFile, "utf8"))).rules };
   const base = await tree.git(["show", `${tree.targetSha}:.lgtm/rules.yaml`]).catch(() => null);
   const local = await readFile(projectPath(repoRoot, "rules.yaml"), "utf8").catch(() => null);
   const rules = base === null ? [] : RulesFile.parse(parse(base)).rules;

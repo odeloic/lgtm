@@ -6,6 +6,7 @@ export interface Actions {
   reset(id: string): Promise<boolean>;
   edit(id: string, change: { body?: string; suggestion?: string }): Promise<boolean>;
   copy(id: string): Promise<boolean>;
+  copyText(text: string): Promise<boolean>;
   ask(id: string, message: string): Promise<boolean>;
   applyProposal(id: string): Promise<boolean>;
   ignoreProposal(id: string): Promise<boolean>;
