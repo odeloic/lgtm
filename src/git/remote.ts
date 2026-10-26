@@ -1,4 +1,5 @@
 import { exec } from "../exec.js";
+import type { Platform } from "./host.js";
 
 export interface Remote {
   url: string;
@@ -32,4 +33,19 @@ export function parseRemote(url: string): Remote | null {
 export async function getRemote(cwd: string, name = "origin"): Promise<Remote | null> {
   const { code, stdout } = await exec("git", ["remote", "get-url", name], { cwd });
   return code === 0 ? parseRemote(stdout.trim()) : null;
+}
+
+export interface RepoLinks {
+  name: string;
+  url: string;
+  mrUrl: string;
+}
+
+export function repoLinks(remote: Remote, platform: Platform, mrId: number): RepoLinks {
+  const url = `https://${remote.host}/${remote.path}`;
+  return {
+    name: remote.path.split("/").pop() ?? remote.path,
+    url,
+    mrUrl: platform === "gitlab" ? `${url}/-/merge_requests/${mrId}` : `${url}/pull/${mrId}`,
+  };
 }

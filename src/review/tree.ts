@@ -19,6 +19,12 @@ export interface ReviewTree {
   remove(): Promise<void>;
 }
 
+export class ReviewedCommitGone extends Error {
+  constructor(readonly sha: string) {
+    super(`${sha.slice(0, 7)} is not reachable any more`);
+  }
+}
+
 export function reviewTreePath(runId: string): string {
   return join(USER_DIR, "tmp", runId);
 }
@@ -42,6 +48,14 @@ export async function buildReviewTree(repoRoot: string, originUrl: string, mr: M
     `+${mr.headRef}:refs/lgtm/head`,
     `+refs/heads/${mr.targetBranch}:refs/lgtm/base`,
   ]);
+  const reachable = await git(["cat-file", "-e", `${mr.headSha}^{commit}`]).then(
+    () => true,
+    () => false,
+  );
+  if (!reachable) {
+    await rm(dir, { recursive: true, force: true });
+    throw new ReviewedCommitGone(mr.headSha);
+  }
   await git(["checkout", "--quiet", "--detach", mr.headSha]);
   await rm(join(dir, ".cursor"), { recursive: true, force: true });
   await mkdir(join(dir, ".cursor"));

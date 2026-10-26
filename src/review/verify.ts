@@ -28,6 +28,7 @@ function verifyPrompt(findings: FindingRecord[]): string {
     title: f.title,
     body: f.body,
     evidence: f.evidence,
+    previousId: f.previousId,
   }));
   return [
     `A reviewer produced the findings below for the merge request described in ${BUNDLE_PATH} (description, changed files, rules and diff). This checkout is at the MR head.`,

@@ -1,0 +1,131 @@
+@font-face {
+  font-family: "lucide";
+  src: url("lucide-static/font/lucide.woff2") format("woff2");
+}
+
+[class^="icon-"],
+[class*=" icon-"] {
+  font-family: "lucide" !important;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+.icon-arrow-down::before {
+  content: "\e046";
+}
+
+.icon-ban::before {
+  content: "\e055";
+}
+
+.icon-check::before {
+  content: "\e070";
+}
+
+.icon-chevron-down::before {
+  content: "\e071";
+}
+
+.icon-chevron-right::before {
+  content: "\e073";
+}
+
+.icon-circle-alert::before {
+  content: "\e07b";
+}
+
+.icon-circle-check::before {
+  content: "\e225";
+}
+
+.icon-circle-dashed::before {
+  content: "\e4b4";
+}
+
+.icon-circle-x::before {
+  content: "\e088";
+}
+
+.icon-clipboard-check::before {
+  content: "\e218";
+}
+
+.icon-copy::before {
+  content: "\e0a2";
+}
+
+.icon-file-diff::before {
+  content: "\e319";
+}
+
+.icon-file-minus::before {
+  content: "\e0ca";
+}
+
+.icon-file-plus::before {
+  content: "\e0cd";
+}
+
+.icon-file-symlink::before {
+  content: "\e327";
+}
+
+.icon-gauge::before {
+  content: "\e1be";
+}
+
+.icon-info::before {
+  content: "\e0fe";
+}
+
+.icon-loader::before {
+  content: "\e10c";
+}
+
+.icon-octagon-alert::before {
+  content: "\e12a";
+}
+
+.icon-pencil::before {
+  content: "\e1f8";
+}
+
+.icon-rotate-ccw::before {
+  content: "\e14b";
+}
+
+.icon-scan-search::before {
+  content: "\e53b";
+}
+
+.icon-send::before {
+  content: "\e155";
+}
+
+.icon-shield-check::before {
+  content: "\e1fe";
+}
+
+.icon-triangle-alert::before {
+  content: "\e192";
+}
+
+.icon-undo-2::before {
+  content: "\e2a0";
+}
+
+.icon-user::before {
+  content: "\e19e";
+}
+
+.icon-sun::before {
+  content: "\e17b";
+}
+
+.icon-moon::before {
+  content: "\e121";
+}
+
+.icon-monitor::before {
+  content: "\e120";
+}
