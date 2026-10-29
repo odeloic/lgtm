@@ -3,6 +3,7 @@ import * as p from "@clack/prompts";
 import { stringify } from "yaml";
 import { z } from "zod";
 import { parseAgentJson } from "../agent/json.js";
+import { withCursorPermissions } from "../agent/permissions.js";
 import { runAgent } from "../agent/runAgent.js";
 import { ensureProjectDir, projectPath } from "../project.js";
 import { type LedgerEntry, ledgerEntry } from "../run/ledger.js";
@@ -54,7 +55,11 @@ export interface RulesProposal {
   ledger: LedgerEntry[];
 }
 
-export async function proposeRules(sources: Source[], cwd: string, model?: string): Promise<RulesProposal> {
+export function proposeRules(sources: Source[], cwd: string, model?: string): Promise<RulesProposal> {
+  return withCursorPermissions(cwd, () => proposeRulesGuarded(sources, cwd, model));
+}
+
+async function proposeRulesGuarded(sources: Source[], cwd: string, model?: string): Promise<RulesProposal> {
   const ledger: LedgerEntry[] = [];
   const first = await runAgent(rulesPrompt(sources), { cwd, model, mode: "ask" });
   ledger.push(ledgerEntry("init", first, model));
