@@ -47,6 +47,7 @@ export const api = {
   reset: (id: string) => post(id, "reset"),
   edit: (id: string, change: { body?: string; suggestion?: string }) => post(id, "edit", change),
   copy: (id: string) => post(id, "copy"),
+  postComment: (id: string) => post(id, "post"),
   ask: (id: string, message: string) => post(id, "thread", { message }),
   applyProposal: (id: string) => post(id, "proposal/apply"),
   ignoreProposal: (id: string) => post(id, "proposal/ignore"),

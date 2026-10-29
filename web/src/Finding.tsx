@@ -57,6 +57,15 @@ function chipFor(status: Status): [string, string] {
 }
 
 function Chip({ f }: { f: FindingRecord }) {
+  if (f.posted) {
+    return f.posted.url ? (
+      <a className="chip ok" href={f.posted.url} target="_blank" rel="noreferrer">
+        Posted
+      </a>
+    ) : (
+      <span className="chip ok">Posted</span>
+    );
+  }
   const [tone, label] = chipFor(effectiveStatus(f));
   return <span className={`chip ${tone}`}>{label}</span>;
 }
@@ -83,10 +92,10 @@ function byline(f: FindingRecord): string {
 }
 
 function Location({ f }: { f: FindingRecord }) {
-  const { fileAnchor, blobUrl } = useCtx();
+  const { fileAnchor, sourceUrl } = useCtx();
   const label = `${basename(f.file)} : ${lineRange(f)}`;
   const anchor = f.general ? undefined : fileAnchor(f.file);
-  const href = anchor ? `#${anchor}` : blobUrl(f.file, f.startLine, f.endLine);
+  const href = anchor ? `#${anchor}` : sourceUrl(f.file, f.startLine, f.endLine);
   return (
     <div className="loc">
       {href ? (
@@ -189,7 +198,7 @@ function Suggestion({ f, suggestion = f.suggestion }: { f: FindingRecord; sugges
 }
 
 function Evidence({ evidence }: { evidence: string }) {
-  const { fileAnchor, blobUrl } = useCtx();
+  const { fileAnchor, sourceUrl } = useCtx();
   const refs = evidence
     .split(";")
     .map((part) => part.trim())
@@ -200,7 +209,7 @@ function Evidence({ evidence }: { evidence: string }) {
     <div className="ev">
       Evidence
       {refs.map(([ref, path, start, end]) => {
-        const external = blobUrl(path!, Number(start), Number(end ?? start));
+        const external = sourceUrl(path!, Number(start), Number(end ?? start));
         const anchor = fileAnchor(path!);
         const href = external ?? (anchor && `#${anchor}`);
         return href ? (
@@ -562,10 +571,39 @@ function ThreadToggle({ f, open, onToggle, ghost }: { f: FindingRecord; open: bo
   );
 }
 
+function PostButton({ f }: { f: FindingRecord }) {
+  const { actions } = useCtx();
+  const [busy, setBusy] = useState(false);
+  if (f.posted) return null;
+  const post = async () => {
+    setBusy(true);
+    await actions.postComment(f.id);
+    setBusy(false);
+  };
+  return (
+    <button className="btn pri" disabled={busy} onClick={() => void post()}>
+      <Icon name={busy ? "loader" : "send"} spin={busy} />
+      {busy ? "Posting" : "Post"}
+    </button>
+  );
+}
+
+function PostError({ f }: { f: FindingRecord }) {
+  const { postErrors } = useCtx();
+  const error = postErrors[f.id];
+  if (!error) return null;
+  return (
+    <div className="post-error" role="alert">
+      <Icon name="triangle-alert" />
+      <span>Could not post: {error}</span>
+    </div>
+  );
+}
+
 function CopyButton({ f }: { f: FindingRecord }) {
   const { actions } = useCtx();
   return (
-    <button className="btn pri" onClick={() => void actions.copy(f.id)}>
+    <button className="btn" onClick={() => void actions.copy(f.id)}>
       <Icon name="copy" />
       Copy
     </button>
@@ -654,13 +692,17 @@ function OwnComment({ f }: { f: FindingRecord }) {
       )}
       {!editing && (
         <div className="acts">
+          <PostButton f={f} />
           <CopyButton f={f} />
-          <button className="btn" onClick={() => setEditing(true)}>
-            Edit
-          </button>
+          {!f.posted && (
+            <button className="btn" onClick={() => setEditing(true)}>
+              Edit
+            </button>
+          )}
           <ThreadToggle f={f} open={open} onToggle={toggle} />
         </div>
       )}
+      <PostError f={f} />
       {open && <Thread f={f} />}
     </article>
   );
@@ -699,10 +741,13 @@ function ReviewerFinding({ f }: { f: FindingRecord }) {
       <VerifierStrip f={f} onAgree={() => setDismissing("The verifier was right")} />
       {!editing && (
         <div className="acts">
+          <PostButton f={f} />
           <CopyButton f={f} />
-          <button className="btn" onClick={() => setEditing(true)}>
-            Edit
-          </button>
+          {!f.posted && (
+            <button className="btn" onClick={() => setEditing(true)}>
+              Edit
+            </button>
+          )}
           {proposing && (
             <button className="btn" onClick={() => void actions.accept(f.id)}>
               Accept
@@ -719,6 +764,7 @@ function ReviewerFinding({ f }: { f: FindingRecord }) {
           <Dismisser id={f.id} initial={dismissing} onDone={() => setDismissing(null)} />
         </div>
       )}
+      <PostError f={f} />
       {open && <Thread f={f} />}
     </article>
   );

@@ -78,3 +78,14 @@ export function newSideStart(hunk: Hunk): number {
 export function newSideEnd(hunk: Hunk): number {
   return [...hunk.lines].reverse().find((l) => l.newNo !== null)?.newNo ?? 0;
 }
+
+export function oldSideAt(file: DiffFile, newNo: number): number | undefined {
+  for (const hunk of file.hunks) {
+    let oldNo = Number(HUNK.exec(hunk.header)?.[1] ?? 0);
+    for (const line of hunk.lines) {
+      if (line.newNo === newNo) return line.oldNo ?? oldNo;
+      if (line.oldNo !== null) oldNo = line.oldNo + 1;
+    }
+  }
+  return undefined;
+}

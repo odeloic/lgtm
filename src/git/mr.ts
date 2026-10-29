@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { exec } from "../exec.js";
-import { classifyHostFailure } from "./errors.js";
+import { hostFailure } from "./errors.js";
 import type { Platform } from "./host.js";
 
 export interface MergeRequest {
@@ -60,7 +60,7 @@ export async function fetchMergeRequest(platform: Platform, id: number, cwd: str
 }
 
 async function run(bin: string, args: string[], mrId: number, cwd: string): Promise<string> {
-  const { code, stdout, stderr } = await exec(bin, args, { cwd });
-  if (code !== 0) throw classifyHostFailure(bin, (stderr || stdout).trim() || `${bin} exited with code ${code}`, mrId);
-  return stdout;
+  const result = await exec(bin, args, { cwd });
+  if (result.code !== 0) throw hostFailure(bin, result, mrId);
+  return result.stdout;
 }

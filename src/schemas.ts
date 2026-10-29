@@ -131,4 +131,5 @@ export interface FindingRecord extends Finding {
   thread?: ThreadMessage[];
   pending?: true;
   revisions?: AppliedRevision[];
+  posted?: { at: string; url?: string };
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { type FindingRecord, type FindingResponse, type HeadStatus, type RunView, api, eventsUrl } from "./api";
 import { type Actions, Context, type Ctx } from "./ctx";
-import { type DiffFile, newSideEnd, newSideStart, parseDiff } from "./diff";
+import { type DiffFile, newSideEnd, newSideStart, oldSideAt, parseDiff } from "./diff";
 import { DiffFileView, type Selection } from "./DiffView";
 import { Finding } from "./Finding";
 import {
@@ -60,8 +60,19 @@ function Segmented<T extends string>({
 
 const fileAnchor = (index: number) => `file-${index}`;
 
-function blobUrl(run: RunView, file: string, start: number, end: number): string | undefined {
+async function hex(algorithm: "SHA-1" | "SHA-256", text: string): Promise<string> {
+  const bytes = await crypto.subtle.digest(algorithm, new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function sourceUrl(run: RunView, diffFile: DiffFile | undefined, pathHash: string | undefined, file: string, start: number, end: number): string | undefined {
   if (!run.repo) return undefined;
+  const oldNo = diffFile && oldSideAt(diffFile, start);
+  if (pathHash && oldNo !== undefined) {
+    return run.platform === "gitlab"
+      ? `${run.repo.mrUrl}/diffs#${pathHash}_${oldNo}_${start}`
+      : `${run.repo.mrUrl}/files#diff-${pathHash}R${start}${end > start ? `-R${end}` : ""}`;
+  }
   const sha = run.mr.headSha;
   return run.platform === "gitlab"
     ? `${run.repo.url}/-/blob/${sha}/${file}#L${start}-${end}`
@@ -89,6 +100,7 @@ export function App() {
   const [head, setHead] = useState<HeadStatus | null>(null);
   const [pendingSince, setPendingSince] = useState<Record<string, number>>({});
   const [threadErrors, setThreadErrors] = useState<Record<string, string>>({});
+  const [postErrors, setPostErrors] = useState<Record<string, string>>({});
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
@@ -165,6 +177,18 @@ export function App() {
           return false;
         }
       },
+      postComment: async (id) => {
+        setPostErrors(({ [id]: _, ...rest }) => rest);
+        try {
+          const response = await api.postComment(id);
+          apply(response.finding, response.score);
+          if (response.note) notify(response.note);
+          return true;
+        } catch (err) {
+          setPostErrors((all) => ({ ...all, [id]: (err as Error).message }));
+          return false;
+        }
+      },
       copyText: async (text) => {
         const ok = await writeClipboard(text);
         notify(ok ? "Copied to the clipboard." : "Could not write to the clipboard.", ok ? "info" : "error");
@@ -181,21 +205,36 @@ export function App() {
   }, [apply, notify]);
 
   const files = useMemo<DiffFile[]>(() => (run ? parseDiff(run.diff) : []), [run?.diff]);
+  const [pathHashes, setPathHashes] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!run) return;
+    const algorithm = run.platform === "gitlab" ? "SHA-1" : "SHA-256";
+    let current = true;
+    Promise.all(files.map(async (f) => [f.path, await hex(algorithm, f.path)] as const)).then((pairs) => {
+      if (current) setPathHashes(Object.fromEntries(pairs));
+    });
+    return () => {
+      current = false;
+    };
+  }, [files, run?.platform]);
 
   const ctx = useMemo<Ctx>(
     () => ({
       actions,
       pendingSince,
       threadErrors,
+      postErrors,
       threads: run?.threads ?? true,
       lineText: (file, newNo) => files.find((f) => f.path === file)?.hunks.flatMap((h) => h.lines).find((l) => l.newNo === newNo)?.text,
       fileAnchor: (file) => {
         const index = files.findIndex((f) => f.path === file);
         return index === -1 ? undefined : fileAnchor(index);
       },
-      blobUrl: (file, start, end) => (run ? blobUrl(run, file, start, end) : undefined),
+      sourceUrl: (file, start, end) =>
+        run ? sourceUrl(run, files.find((f) => f.path === file), pathHashes[file], file, start, end) : undefined,
     }),
-    [actions, pendingSince, threadErrors, files, run?.threads, run?.repo, run?.mr.headSha, run?.platform],
+    [actions, pendingSince, threadErrors, postErrors, files, pathHashes, run?.threads, run?.repo, run?.mr.headSha, run?.platform],
   );
 
   if (loadError) {

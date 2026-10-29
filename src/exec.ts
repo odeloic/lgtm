@@ -10,6 +10,7 @@ export interface ExecResult {
 export interface ExecOptions {
   cwd?: string;
   timeoutMs?: number;
+  input?: string;
 }
 
 export class CommandNotFoundError extends Error {
@@ -18,21 +19,23 @@ export class CommandNotFoundError extends Error {
   }
 }
 
-export function exec(bin: string, args: string[], { cwd, timeoutMs = 30_000 }: ExecOptions = {}): Promise<ExecResult> {
+export function exec(bin: string, args: string[], { cwd, timeoutMs = 30_000, input }: ExecOptions = {}): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, {
       cwd,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
       timeout: timeoutMs,
       killSignal: "SIGTERM",
     });
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (chunk) => (stdout += chunk));
-    child.stderr.on("data", (chunk) => (stderr += chunk));
+    child.stdout!.on("data", (chunk) => (stdout += chunk));
+    child.stderr!.on("data", (chunk) => (stderr += chunk));
     child.on("error", (err: NodeJS.ErrnoException) =>
       reject(err.code === "ENOENT" ? new CommandNotFoundError(bin) : err),
     );
+    child.stdin?.on("error", () => {});
+    child.stdin?.end(input);
     child.on("close", (code, signal) => resolve({ code: code ?? 1, signal, stdout, stderr }));
   });
 }

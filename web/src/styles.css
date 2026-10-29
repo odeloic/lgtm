@@ -1050,6 +1050,10 @@ textarea.mono {
   white-space: nowrap;
 }
 
+a.chip {
+  text-decoration: none;
+}
+
 .chip.ok {
   color: var(--ok);
   background: var(--ok-soft);
@@ -1251,6 +1255,16 @@ textarea.mono {
 
 .acts .thread-btn {
   margin-left: auto;
+}
+
+.post-error {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--bad);
+  font-size: 13px;
 }
 
 .acts > .dismisser {

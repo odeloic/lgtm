@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { exec } from "../exec.js";
-import { classifyHostFailure } from "./errors.js";
+import { hostFailure } from "./errors.js";
 import type { Platform } from "./host.js";
 
 export interface DiscussionNote {
@@ -134,9 +134,9 @@ async function fetchGitHub(id: number, cwd: string): Promise<Discussion[]> {
 }
 
 async function paged(bin: string, args: string[], mrId: number, cwd: string): Promise<unknown[]> {
-  const { code, stdout, stderr } = await exec(bin, args, { cwd, timeoutMs: 120_000 });
-  if (code !== 0) throw classifyHostFailure(bin, (stderr || stdout).trim() || `${bin} exited with code ${code}`, mrId);
-  return splitPages(stdout).flatMap((page) => JSON.parse(page) as unknown[]);
+  const run = await exec(bin, args, { cwd, timeoutMs: 120_000 });
+  if (run.code !== 0) throw hostFailure(bin, run, mrId);
+  return splitPages(run.stdout).flatMap((page) => JSON.parse(page) as unknown[]);
 }
 
 function splitPages(text: string): string[] {

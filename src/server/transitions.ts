@@ -28,6 +28,7 @@ function setSuggestion(f: FindingRecord, suggestion: string | undefined): void {
 
 export function edit(f: FindingRecord, change: { body?: string; suggestion?: string }): void {
   assertLive(f, "edit");
+  if (f.posted) throw new HttpError(409, `${f.id} was already posted, edit it on the merge request instead`);
   if (change.body === undefined && change.suggestion === undefined) {
     throw new HttpError(400, "Send a body, a suggestion, or both");
   }
@@ -42,6 +43,16 @@ export function edit(f: FindingRecord, change: { body?: string; suggestion?: str
 export function accept(f: FindingRecord): void {
   assertLive(f, "accept");
   f.state = "accepted";
+}
+
+export function assertPostable(f: FindingRecord): void {
+  assertLive(f, "post");
+  if (f.posted) throw new HttpError(409, `${f.id} was already posted`);
+}
+
+export function markPosted(f: FindingRecord, at: string, url: string | undefined): void {
+  f.posted = { at, ...(url && { url }) };
+  if (f.state === "proposed") f.state = "accepted";
 }
 
 export function dismiss(f: FindingRecord, reason: string): void {

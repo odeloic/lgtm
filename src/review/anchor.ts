@@ -37,3 +37,42 @@ export function anchorFindings(findings: FindingRecord[], diff: string): Finding
     return contained && suggestion !== undefined ? { ...rest, suggestion } : rest;
   });
 }
+
+const HUNK_COUNTS = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
+
+export function oldLineOf(diff: string, file: string, newLine: number): number | null {
+  let inFile = false;
+  let oldNo = 0;
+  let newNo = 0;
+  let oldLeft = 0;
+  let newLeft = 0;
+  for (const line of diff.split("\n")) {
+    if (oldLeft > 0 || newLeft > 0) {
+      if (line.startsWith("\\")) continue;
+      if (line.startsWith("-")) {
+        oldNo++;
+        oldLeft--;
+      } else if (line.startsWith("+")) {
+        if (inFile && newNo === newLine) return null;
+        newNo++;
+        newLeft--;
+      } else {
+        if (inFile && newNo === newLine) return oldNo;
+        oldNo++;
+        newNo++;
+        oldLeft--;
+        newLeft--;
+      }
+    } else if (line.startsWith("diff --git ")) inFile = false;
+    else if (line.startsWith("+++ ")) inFile = line.slice(4) === `b/${file}`;
+    else {
+      const hunk = HUNK_COUNTS.exec(line);
+      if (!hunk) continue;
+      oldNo = Number(hunk[1]);
+      oldLeft = hunk[2] === undefined ? 1 : Number(hunk[2]);
+      newNo = Number(hunk[3]);
+      newLeft = hunk[4] === undefined ? 1 : Number(hunk[4]);
+    }
+  }
+  return null;
+}

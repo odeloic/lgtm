@@ -1,13 +1,15 @@
 import { type Context, Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
+import { HostError } from "../git/errors.js";
 import { fetchMergeRequest } from "../git/mr.js";
+import { postComment } from "../git/post.js";
 import { getRemote, repoLinks } from "../git/remote.js";
 import { readProjectConfig } from "../project.js";
-import { newSideRanges } from "../review/anchor.js";
+import { newSideRanges, oldLineOf } from "../review/anchor.js";
 import type { FindingRecord } from "../schemas.js";
 import { hostGuard, tokenGuard } from "./access.js";
-import { copyText } from "./copy.js";
+import { commentBody, copyText } from "./copy.js";
 import { HttpError, parseBody } from "./http.js";
 import { readAsset, readIndex } from "./static.js";
 import type { RunStore, ServerEvent } from "./store.js";
@@ -67,7 +69,7 @@ export function createApp({ store, threads, repoRoot, token, allowedHosts }: App
 
   app.use(hostGuard(allowedHosts));
   app.use(tokenGuard(token, (path) => !isApiOrRoot(path)));
-  app.onError((err, c) => c.json({ error: err.message }, err instanceof HttpError ? err.status : 500));
+  app.onError((err, c) => c.json({ error: err.message }, err instanceof HttpError ? err.status : err instanceof HostError ? 502 : 500));
   app.notFound((c) => c.json({ error: "Not found" }, 404));
 
   app.get("/", async (c) => {
@@ -117,6 +119,29 @@ export function createApp({ store, threads, repoRoot, token, allowedHosts }: App
     const text = await store.update(id, (f, run) => copyText(f, run.platform));
     const f = store.find(id);
     return c.json(respond(f, { text, headMoved, note: transition.overrideNote(f) }));
+  });
+
+  const posting = new Set<string>();
+  app.post("/api/findings/:id/post", async (c) => {
+    const id = c.req.param("id");
+    const f = store.find(id);
+    transition.assertPostable(f);
+    if (posting.has(id)) throw new HttpError(409, `${id} is already being posted`);
+    posting.add(id);
+    try {
+      const { platform, mr, diff } = store.run;
+      const url = await postComment(platform, mr.id, repoRoot, {
+        body: f.general ? copyText(f, platform) : commentBody(f, platform),
+        mrUrl: (await repo)?.mrUrl,
+        ...(!f.general && {
+          anchor: { file: f.file, startLine: f.startLine, endLine: f.endLine, oldLine: oldLineOf(diff, f.file, f.endLine), headSha: mr.headSha },
+        }),
+      });
+      const posted = await store.update(id, (f) => (transition.markPosted(f, new Date().toISOString(), url), f));
+      return c.json(respond(posted, { note: transition.overrideNote(posted) }));
+    } finally {
+      posting.delete(id);
+    }
   });
 
   const diffRanges = newSideRanges(store.run.diff);
