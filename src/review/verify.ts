@@ -1,5 +1,6 @@
 import { parseAgentJson } from "../agent/json.js";
 import { type AgentResult, runAgent } from "../agent/runAgent.js";
+import type { CiStatus } from "../git/ciStatus.js";
 import { type LedgerEntry, ledgerEntry } from "../run/ledger.js";
 import { type FindingRecord, SEVERITIES, type Verdict, VerifyOutput } from "../schemas.js";
 import { BUNDLE_PATH } from "./bundle.js";
@@ -15,7 +16,7 @@ const VERDICT_SHAPE = `{
   ]
 }`;
 
-function verifyPrompt(findings: FindingRecord[]): string {
+function verifyPrompt(findings: FindingRecord[], ci: CiStatus): string {
   const numbered = findings.map((f, index) => ({
     index,
     ruleId: f.ruleId,
@@ -38,6 +39,9 @@ function verifyPrompt(findings: FindingRecord[]): string {
     "- downgrade: the problem is real but the severity is too high; give the lower severity in `severity`.",
     "- drop: the claim is wrong, already handled elsewhere, or too trivial for a reviewer to raise.",
     "Gaps are in scope: code outside the diff that the change should have updated to stay consistent (another query, mutation, job or test using the same concept). Being outside the diff or pre-existing is not a reason to drop it.",
+    ...(ci.state === "passed"
+      ? ["CI passed at the head: drop findings that only report style, formatting, lint, build or test-pass problems. Test-gap and missing-test findings stay."]
+      : []),
     "Answer with one verdict per finding, using its index, and only a JSON object of this shape, no prose:",
     VERDICT_SHAPE,
     "Findings:",
@@ -52,14 +56,14 @@ export interface VerifyResult {
   ledger: LedgerEntry[];
 }
 
-export async function verifyFindings(findings: FindingRecord[], cwd: string, model?: string, ledger: LedgerEntry[] = []): Promise<VerifyResult> {
+export async function verifyFindings(findings: FindingRecord[], ci: CiStatus, cwd: string, model?: string, ledger: LedgerEntry[] = []): Promise<VerifyResult> {
   const call = async (prompt: string, sessionId?: string): Promise<AgentResult> => {
     const result = await runAgent(prompt, { cwd, model, mode: "ask", sessionId });
     ledger.push(ledgerEntry("verify", result, model));
     return result;
   };
 
-  const first = await call(verifyPrompt(findings));
+  const first = await call(verifyPrompt(findings, ci));
   const parsed = parseAgentJson(first.result, VerifyOutput);
   if (parsed.ok) return { verdicts: parsed.value.verdicts, raw: first.result, ledger };
 

@@ -1,4 +1,5 @@
 import type { FindingRecord, HeadStatus, RunView, Score } from "./api";
+import { ciLabel } from "../../src/git/ciStatus";
 import { compact, dateTime, duration, effectiveStatus, plural, shortSha } from "./format";
 import { Icon } from "./Icon";
 import { ThemeToggle } from "./ThemeToggle";
@@ -186,6 +187,12 @@ export function Header({ run, head }: { run: RunView; head: HeadStatus | null })
                 {shortSha(mr.headSha)} → {mr.targetBranch}
               </dd>
             </div>
+            {run.ci && (
+              <div>
+                <dt>CI</dt>
+                <dd>{ciLabel(run.ci).replace(/^CI: /, "")}</dd>
+              </div>
+            )}
             <div>
               <dt>Reviewed</dt>
               <dd>{dateTime(run.reviewedAt)}</dd>

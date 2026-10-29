@@ -17,7 +17,6 @@ export const Rule = z.object({
   good: z.string().optional(),
   bad: z.string().optional(),
   source: z.string().optional(),
-  enforcedBy: z.string().nullable().default(null),
 });
 export type Rule = z.infer<typeof Rule>;
 

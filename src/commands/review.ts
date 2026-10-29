@@ -5,6 +5,8 @@ import { requireAgent, showRetries } from "../agent/require.js";
 import { readUserConfig } from "../config.js";
 import { summarizeError } from "../errors.js";
 import { type Discussion, fetchDiscussions } from "../git/discussions.js";
+import { fetchCi } from "../git/ci.js";
+import { ciLabel, type CiStatus } from "../git/ciStatus.js";
 import { type Platform, detectPlatform } from "../git/host.js";
 import { type MergeRequest, fetchMergeRequest } from "../git/mr.js";
 import { getRemote } from "../git/remote.js";
@@ -50,6 +52,11 @@ export async function review(mrId: number, options: ServeOptions, rulesFile?: st
     const mr = await fetchMergeRequest(platform, mrId, repoRoot);
     spin.stop(`${mr.title} by ${mr.author} (${mr.headSha.slice(0, 7)})`);
 
+    spin.start("Fetching CI");
+    const ci = await fetchCi(platform, mrId, mr.headSha, repoRoot);
+    spin.stop(ciLabel(ci));
+    if (ci.warning) p.log.warn(ci.warning);
+
     spin.start("Reading discussions");
     const discussions = await fetchDiscussions(platform, mrId, repoRoot);
     spin.stop(`Read ${discussions.length} thread${discussions.length === 1 ? "" : "s"}`);
@@ -72,7 +79,7 @@ export async function review(mrId: number, options: ServeOptions, rulesFile?: st
     spin.start("Building review tree");
     const tree = await buildReviewTree(repoRoot, origin.url, mr, runId);
     try {
-      return await reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions, platform, options, rulesFile });
+      return await reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions, platform, options, rulesFile, ci });
     } finally {
       stopRemovingTree();
       await tree.remove();
@@ -96,9 +103,10 @@ interface ReviewTreeInput {
   platform: Platform;
   options: ServeOptions;
   rulesFile?: string;
+  ci: CiStatus;
 }
 
-async function reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions, platform, options, rulesFile }: ReviewTreeInput): Promise<number> {
+async function reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions, platform, options, rulesFile, ci }: ReviewTreeInput): Promise<number> {
   const files = await listChangedFiles(tree, mr.headSha, config?.skip ?? DEFAULT_SKIP);
   const baseRules = await loadBaseRules(tree, repoRoot, mr.targetBranch, rulesFile);
   const rules = rulesForFiles(baseRules.rules, files.reviewed);
@@ -107,7 +115,7 @@ async function reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions
     ? await tree.git(["diff", "--no-renames", tree.mergeBase, mr.headSha, "--", ...files.reviewed])
     : "";
   const history = await loadHistory(repoRoot, tree, mr, files.reviewed);
-  const bundle = await writeBundle(tree, { mr, files, rules, voice, diff, discussions, history });
+  const bundle = await writeBundle(tree, { mr, files, rules, voice, diff, discussions, history, ci });
   spin.stop(
     `${files.reviewed.length} files to review, ${files.skipped.length} skipped, ${rules.length} rules, ~${Math.round(bundle.length / 4)} tokens`,
   );
@@ -135,6 +143,7 @@ async function reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions
         {
           mr: { id: mr.id, title: mr.title, author: mr.author, headSha: mr.headSha, mergeBase: tree.mergeBase, targetBranch: mr.targetBranch, targetSha: tree.targetSha },
           reviewedAt: new Date().toISOString(),
+          ci,
           notReviewed: files.skipped,
           pass: history.pass,
           ...(history.previousRun && { previousRun: history.previousRun, previousHead: history.previousHead }),
@@ -176,7 +185,7 @@ async function reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions
     );
     if (findings.length) {
       spin.start(`Verifying ${findings.length} findings with ${verifyModel ?? "default model"}`);
-      const verification = await verifyFindings(findings, tree.dir, verifyModel, ledger);
+      const verification = await verifyFindings(findings, ci, tree.dir, verifyModel, ledger);
       verifyRaw = verification.raw;
       if (verification.verdicts) {
         findings = applyVerdicts(findings, verification.verdicts);
@@ -200,6 +209,7 @@ async function reviewTree({ spin, tree, repoRoot, config, mr, runId, discussions
   const dismissedEarlier = history.findings.filter(isDismissed);
   const ruleCategories = baseRules.rules.map(({ id, category }) => ({ id, category }));
   await saveRun({ findings, resolved, dismissedEarlier, score, rules: ruleCategories, diff, sessionId, platform, ...(verifyError && { verifyError }) });
+  p.log.message(ciLabel(ci));
   printReport(findings, score);
   p.log.message(passSummary(history, findings, resolved, discussions.length));
   p.log.info(`Run saved to ${runFile}`);

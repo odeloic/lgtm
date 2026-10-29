@@ -31,7 +31,6 @@ export async function loadBaseRules(
 
 export function rulesForFiles(rules: Rule[], files: string[]): Rule[] {
   return rules.filter((rule) => {
-    if (rule.enforcedBy) return false;
     const matches = picomatch(rule.scope, { dot: true });
     return files.some((file) => matches(file));
   });

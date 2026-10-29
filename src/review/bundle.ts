@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import picomatch from "picomatch";
 import { USER_DIR } from "../config.js";
+import type { CiStatus } from "../git/ciStatus.js";
 import type { Discussion } from "../git/discussions.js";
 import type { MergeRequest } from "../git/mr.js";
 import type { Rule } from "../schemas.js";
@@ -42,6 +43,7 @@ export interface BundleInput {
   diff: string;
   discussions: Discussion[];
   history: ReviewHistory;
+  ci: CiStatus;
 }
 
 export async function writeBundle(tree: ReviewTree, input: BundleInput): Promise<string> {
@@ -51,7 +53,7 @@ export async function writeBundle(tree: ReviewTree, input: BundleInput): Promise
   return content;
 }
 
-function renderBundle({ mr, files, rules, voice, diff, discussions, history }: BundleInput): string {
+function renderBundle({ mr, files, rules, voice, diff, discussions, history, ci }: BundleInput): string {
   return [
     `# Merge request !${mr.id}: ${mr.title}`,
     `Author: ${mr.author}`,
@@ -68,6 +70,7 @@ function renderBundle({ mr, files, rules, voice, diff, discussions, history }: B
     ...files.reviewed.map((f) => `- ${f}`),
     ...(files.skipped.length ? ["", "Not reviewed (skipped):", ...files.skipped.map((f) => `- ${f}`)] : []),
     "",
+    ...renderCi(ci),
     "## Rules",
     ...(rules.length ? rules.flatMap(renderRule) : ["No project rules apply. Use ruleId null for every finding."]),
     "",
@@ -80,6 +83,30 @@ function renderBundle({ mr, files, rules, voice, diff, discussions, history }: B
     "",
     ...renderIncrement(mr, history),
   ].join("\n");
+}
+
+const CI_INSTRUCTION: Record<CiStatus["state"], string> = {
+  passed:
+    "CI passed at the head. Report nothing a lint, format, build or test job would catch. Missing tests and test gaps are still in scope.",
+  failed:
+    "CI failed at the head. Name the failing jobs in your findings where relevant and don't re-derive why they fail. Missing tests and test gaps are still in scope.",
+  running:
+    "CI hasn't finished at the head, so build and tests aren't verified yet. Report anything in the diff that would break the build or the tests, but no style or format nits.",
+  stale:
+    "The latest CI pipeline ran on an older commit, so build and tests aren't verified yet. Report anything in the diff that would break the build or the tests, but no style or format nits.",
+  none: "There is no CI result for the head. No style or format nits, but report anything in the diff that would break the build or the tests.",
+};
+
+function renderCi(ci: CiStatus): string[] {
+  return [
+    "## CI",
+    `State: ${ci.state}`,
+    `Head: ${sha7(ci.sha)}`,
+    ...(ci.staleSha ? [`Latest pipeline ran on: ${sha7(ci.staleSha)}`] : []),
+    ...(ci.jobs.length ? ["Jobs:", ...ci.jobs.map((j) => `- ${j.name}: ${j.status}`)] : []),
+    CI_INSTRUCTION[ci.state],
+    "",
+  ];
 }
 
 function sha7(sha: string): string {
