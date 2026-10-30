@@ -21,6 +21,7 @@ export function Rail({
   const [current, setCurrent] = useState<string | null>(null);
   const pinned = useRef<string | null>(null);
   const ids = ordered.map((f) => f.id).join(" ");
+  const flagged = files.filter((file) => countIn(file) > 0);
 
   const pin = (id: string) => {
     pinned.current = id;
@@ -90,9 +91,9 @@ export function Rail({
             })}
           </ol>
         )}
-        {files.length > 0 && (
+        {flagged.length > 0 && (
           <div className="files">
-            {files.map((file) => (
+            {flagged.map((file) => (
               <a key={file.path} href={`#${anchorOf(file)}`} title={file.path}>
                 {basename(file.path)} <span className="muted">· {countIn(file)}</span>
               </a>

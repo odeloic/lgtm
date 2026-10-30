@@ -38,7 +38,13 @@ export function anchorFindings(findings: FindingRecord[], diff: string): Finding
   });
 }
 
-const HUNK_COUNTS = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
+export function clampToHunk(hunks: Range[], startLine: number, endLine: number): Range {
+  const hunk = hunks.find(([start, end]) => startLine <= end && endLine >= start);
+  if (!hunk) return [startLine, endLine];
+  return [Math.max(startLine, hunk[0]), Math.min(endLine, hunk[1])];
+}
+
+const HUNK_COUNTS =/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
 
 export function oldLineOf(diff: string, file: string, newLine: number): number | null {
   let inFile = false;

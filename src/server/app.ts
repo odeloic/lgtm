@@ -6,7 +6,7 @@ import { fetchMergeRequest } from "../git/mr.js";
 import { postComment } from "../git/post.js";
 import { getRemote, repoLinks } from "../git/remote.js";
 import { readProjectConfig } from "../project.js";
-import { newSideRanges, oldLineOf } from "../review/anchor.js";
+import { clampToHunk, newSideRanges, oldLineOf } from "../review/anchor.js";
 import type { FindingRecord } from "../schemas.js";
 import { hostGuard, tokenGuard } from "./access.js";
 import { commentBody, copyText } from "./copy.js";
@@ -121,6 +121,7 @@ export function createApp({ store, threads, repoRoot, token, allowedHosts }: App
     return c.json(respond(f, { text, headMoved, note: transition.overrideNote(f) }));
   });
 
+  const diffRanges = newSideRanges(store.run.diff);
   const posting = new Set<string>();
   app.post("/api/findings/:id/post", async (c) => {
     const id = c.req.param("id");
@@ -130,11 +131,12 @@ export function createApp({ store, threads, repoRoot, token, allowedHosts }: App
     posting.add(id);
     try {
       const { platform, mr, diff } = store.run;
+      const [startLine, endLine] = clampToHunk(diffRanges.get(f.file) ?? [], f.startLine, f.endLine);
       const url = await postComment(platform, mr.id, repoRoot, {
         body: f.general ? copyText(f, platform) : commentBody(f, platform),
         mrUrl: (await repo)?.mrUrl,
         ...(!f.general && {
-          anchor: { file: f.file, startLine: f.startLine, endLine: f.endLine, oldLine: oldLineOf(diff, f.file, f.endLine), headSha: mr.headSha },
+          anchor: { file: f.file, startLine, endLine, oldLine: oldLineOf(diff, f.file, endLine), headSha: mr.headSha },
         }),
       });
       const posted = await store.update(id, (f) => (transition.markPosted(f, new Date().toISOString(), url), f));
@@ -144,7 +146,6 @@ export function createApp({ store, threads, repoRoot, token, allowedHosts }: App
     }
   });
 
-  const diffRanges = newSideRanges(store.run.diff);
   app.post("/api/comments", async (c) => {
     const comment = await parseBody(c.req.raw, CommentBody);
     const inDiff = diffRanges.get(comment.file)?.some(([start, end]) => comment.startLine >= start && comment.endLine <= end);
