@@ -80,6 +80,11 @@ try {
         process.exitCode = await open(mrId, { port, open: !args.includes("--no-open") });
         break;
       }
+      case "help":
+      case "--help":
+      case "-h":
+        console.log(USAGE);
+        break;
       default:
         console.error(`Unknown command: ${command ?? "(none)"}\n${USAGE}`);
         process.exitCode = 1;
