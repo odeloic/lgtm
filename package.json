@@ -1,14 +1,14 @@
 {
-  "name": "lgtm",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@odeloic/lgtm",
+  "version": "0.1.0",
   "description": "Local agentic review tool",
   "type": "module",
   "bin": {
     "lgtm": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "web/dist"
   ],
   "engines": {
     "node": ">=20"
@@ -17,7 +17,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "build:web": "npm --prefix web run build",
-    "typecheck:web": "npm --prefix web run typecheck"
+    "typecheck:web": "npm --prefix web run typecheck",
+    "prepack": "npm run build && npm run build:web"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
@@ -34,5 +35,22 @@
   },
   "optionalDependencies": {
     "@napi-rs/keyring": "^2.1.2"
-  }
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/odeloic/lgtm#readme",
+  "bugs": {
+    "url": "https://github.com/odeloic/lgtm/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/odeloic/lgtm.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "cli",
+    "code-review",
+    "agent"
+  ]
 }
