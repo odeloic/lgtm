@@ -18,6 +18,12 @@ lgtm init             # inside a repository: propose rules and connect the remot
 lgtm review --mr 123  # review a pull or merge request
 ```
 
+You can also run it without installing:
+
+```sh
+npx @odeloic/lgtm review --mr 123
+```
+
 ## Commands
 
 | Command | Description |
