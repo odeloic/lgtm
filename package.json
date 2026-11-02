@@ -1,6 +1,6 @@
 {
   "name": "@odeloic/lgtm",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Local agentic review tool",
   "type": "module",
   "bin": {
